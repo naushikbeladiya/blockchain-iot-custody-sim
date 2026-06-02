@@ -1,0 +1,20 @@
+# Exact params used in the paper for reproductive results
+seed: 42
+total_handoffs: 50000
+adversarial_rate: 0.10
+num_distribution_centers: 5
+num_transit_hubs: 12
+num_couriers: 48
+handoff_mean: 3.2
+handoff_min: 2
+handoff_max: 5
+arrival_rate: 100
+skew_window: 300
+block_time_ethereum: 12.0
+block_time_layer2: 2.0
+block_time_fast: 0.4
+base_fee_ethereum: 30
+base_fee_layer2: 5
+eth_price_usd: 3000
+num_validators: 16
+output_dir: ./results

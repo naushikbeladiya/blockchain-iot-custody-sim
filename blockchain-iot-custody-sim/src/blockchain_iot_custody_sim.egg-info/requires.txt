@@ -1,0 +1,11 @@
+simpy>=4.0
+cryptography>=41.0
+numpy>=1.24
+pandas>=2.0
+matplotlib>=3.7
+click>=8.0
+pyyaml>=6.0
+tabulate>=0.9
+
+[dev]
+pytest>=7.0

@@ -1,0 +1,44 @@
+Metadata-Version: 2.4
+Name: blockchain-iot-custody-sim
+Version: 1.0.0
+Summary: Discrete-event simulation framework for a three-tier blockchain-IoT custody chain
+Author-email: Naushik Beladiya <nbeladiya1@toromail.csudh.edu>
+Requires-Python: >=3.9
+Description-Content-Type: text/markdown
+License-File: LICENSE
+Requires-Dist: simpy>=4.0
+Requires-Dist: cryptography>=41.0
+Requires-Dist: numpy>=1.24
+Requires-Dist: pandas>=2.0
+Requires-Dist: matplotlib>=3.7
+Requires-Dist: click>=8.0
+Requires-Dist: pyyaml>=6.0
+Requires-Dist: tabulate>=0.9
+Provides-Extra: dev
+Requires-Dist: pytest>=7.0; extra == "dev"
+Dynamic: license-file
+
+# Blockchain-IoT Custody Chain Simulation
+
+Discrete-event simulation framework for a three-tier blockchain-IoT cryptographic chain-of-custody system for last-mile parcel delivery.
+
+## Installation
+```bash
+git clone https://github.com/naushikbeladiya/blockchain-iot-custody-sim.git
+cd blockchain-iot-custody-sim
+pip install -e .
+```
+
+## Usage
+Run full paper reproduction simulation:
+```bash
+custody-sim run --config config/paper_reproduction.yaml --output ./results
+```
+
+Run quick test:
+```bash
+custody-sim run --handoffs 1000 --output ./results-quick
+```
+
+## License
+MIT License

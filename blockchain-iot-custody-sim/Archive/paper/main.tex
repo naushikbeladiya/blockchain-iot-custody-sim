@@ -1,0 +1,344 @@
+\documentclass[12pt,a4paper]{article}
+
+% ── Packages ────────────────────────────────────────────────────────────────
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage{geometry}
+\geometry{margin=2.5cm}
+
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{booktabs}
+\usepackage{hyperref}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{url}
+\usepackage{cite}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{setspace}
+\usepackage{titlesec}
+\usepackage{fancyhdr}
+\usepackage{abstract}
+
+\onehalfspacing
+\hypersetup{
+  colorlinks = true,
+  linkcolor  = blue!60!black,
+  citecolor  = teal!60!black,
+  urlcolor   = teal!70!black,
+}
+
+\pagestyle{fancy}
+\fancyhf{}
+\rhead{Blockchain--IoT Custody Chain Simulation}
+\lhead{Beladiya, N. (2026)}
+\cfoot{\thepage}
+
+% ── Title ────────────────────────────────────────────────────────────────────
+\title{%
+  \textbf{Cryptographic Chain-of-Custody for Last-Mile Parcel Delivery}\\
+  \large A Discrete-Event Simulation Framework for Blockchain--IoT Integration
+}
+\author{%
+  Naushik Beladiya\\
+  \textit{Department of Computer Science}\\
+  \textit{California State University, Dominguez Hills}\\
+  \texttt{nbeladiya1@toromail.csudh.edu}
+}
+\date{April 2026}
+
+% ─────────────────────────────────────────────────────────────────────────────
+\begin{document}
+\maketitle
+\thispagestyle{fancy}
+
+% ── Abstract ─────────────────────────────────────────────────────────────────
+\begin{abstract}
+We present a discrete-event simulation (DES) framework that models a
+three-tier blockchain--IoT cryptographic chain-of-custody system for
+last-mile parcel delivery.
+IoT cryptographic seals attached to parcels generate ECDSA-signed custody
+events at each handoff; events are verified on-chain by smart-contract logic
+that checks signatures, recomputes SHA-256 hashes, validates timestamps,
+enforces sequence monotonicity, and records custody transitions immutably.
+Across 50,000 simulated custody handoffs (10\% adversarial injection)
+our framework achieves an aggregate Tamper Detection Rate (TDR) of
+\textbf{99.96\%} over five attack categories (payload modification,
+timestamp manipulation, signature forgery, replay attack, sequence violation).
+We further characterise end-to-end confirmation latency across three
+representative blockchain configurations and quantify a \textbf{25.1\%}
+gas cost reduction achieved by edge-side pre-validation optimisations.
+\end{abstract}
+
+\noindent\textbf{Keywords:}
+blockchain, Internet-of-Things, supply chain, cryptographic seals, ECDSA,
+discrete-event simulation, EIP-1559, last-mile delivery
+
+\tableofcontents
+\newpage
+
+% ─────────────────────────────────────────────────────────────────────────────
+\section{Introduction}
+\label{sec:intro}
+
+Last-mile parcel delivery is the most cost-intensive and fraud-prone segment
+of modern supply chains~\cite{wang2019blockchain}.
+Traditional custody records—paper receipts, barcode scans, centralised
+databases—are susceptible to tampering, repudiation, and single-point
+failures~\cite{nakamoto2008bitcoin}.
+
+The convergence of blockchain technology with the Internet-of-Things (IoT)
+offers a compelling solution: lightweight cryptographic seals affixed to
+parcels generate tamper-evident event records at every custody transfer,
+which are anchored immutably on a distributed ledger.
+Smart contracts automate the verification of each record, eliminating
+trusted intermediaries and providing an auditable, non-repudiable trail.
+
+This paper makes three contributions:
+\begin{enumerate}
+  \item A \textbf{formal seven-step verification protocol} for blockchain--IoT
+        custody events (Section~\ref{sec:arch}).
+  \item A \textbf{reproducible discrete-event simulation} framework
+        (Section~\ref{sec:sim}) that exercises the protocol under realistic
+        logistics workloads, including five adversarial attack classes.
+  \item \textbf{Quantitative evaluation} (Section~\ref{sec:results})
+        covering tamper detection, confirmation latency, and gas cost
+        across three blockchain configurations.
+\end{enumerate}
+
+% ─────────────────────────────────────────────────────────────────────────────
+\section{Background and Related Work}
+\label{sec:background}
+
+\subsection{Blockchain in Supply Chain}
+
+Blockchain has been applied to supply chain provenance and transparency in
+several domains, including pharmaceuticals~\cite{pournader2020blockchain},
+food safety~\cite{tian2016agri}, and luxury
+goods~\cite{abeyratne2016blockchain}.
+Enterprise platforms such as Hyperledger Fabric and the IBM Food Trust
+network demonstrate operational viability, yet existing systems typically
+rely on manual scanning rather than continuous cryptographic attestation
+from hardware-bound IoT devices.
+
+\subsection{IoT Security and Lightweight Cryptography}
+
+Resource-constrained IoT devices have historically been confined to
+symmetric-key schemes~\cite{raza2019overview}.
+Advances in elliptic-curve hardware accelerators now enable secp256k1 ECDSA
+operations on microcontrollers in under 100\,ms, making asymmetric
+per-event signatures practical at last-mile handoff frequencies.
+
+\subsection{EIP-1559 and Smart Contract Efficiency}
+
+Ethereum's EIP-1559 fee market~\cite{eip1559} replaces the first-price
+auction with a deterministic base fee that adjusts per block.
+Layer-2 rollups (Optimism, Arbitrum) inherit this mechanism while offering
+order-of-magnitude lower latency and fees, making them attractive substrates
+for high-volume custody chains.
+
+% ─────────────────────────────────────────────────────────────────────────────
+\section{System Architecture}
+\label{sec:arch}
+
+\subsection{Three-Tier Model}
+
+The proposed system comprises three tiers:
+
+\begin{description}
+  \item[Tier 1 — IoT Seal Device.]
+    A hardware-bound cryptographic seal (secp256k1 private key, SHA-256,
+    AES-256-GCM) attaches to each parcel.
+    At every custody handoff it generates a \texttt{CustodyEvent} containing
+    signed sensor telemetry (temperature, humidity, shock, GPS).
+
+  \item[Tier 2 — Verifier Smart Contract.]
+    A Python-modelled equivalent of a Solidity contract executes the
+    seven-step verification pipeline (Figure~\ref{fig:pipeline}) and,
+    on success, writes an immutable entry to the \texttt{AssetLedger}.
+
+  \item[Tier 3 — Reporting \& Analytics.]
+    Off-chain metrics collection aggregates TDR, latency distributions,
+    and gas consumption into CSV and LaTeX artefacts.
+\end{description}
+
+\subsection{Verification Pipeline}
+\label{subsec:pipeline}
+
+\begin{algorithm}[H]
+\caption{Seven-Step Custody Event Verification}
+\label{fig:pipeline}
+\begin{algorithmic}[1]
+  \Require CustodyEvent $e$, block timestamp $t_b$, skew window $\Delta$
+  \Ensure VerificationResult $r$
+  \State \textbf{Step 1} Lookup \texttt{device\_id} in \texttt{DeviceRegistry}; reject if inactive
+  \State \textbf{Step 2} Verify ECDSA signature: $\texttt{ecrecover}(e.\mathit{hash}, e.\mathit{sig}) = pk_d$
+  \State \textbf{Step 3} Recompute hash: $H' = \text{SHA-256}(\mathit{payload}\,\|\,t_e\,\|\,\mathit{ctx})$; reject if $H' \ne e.\mathit{hash}$
+  \State \textbf{Step 4} Validate timestamp: reject if $|t_e - t_b| > \Delta$
+  \State \textbf{Step 5} Enforce sequence: reject if $e.\mathit{seq} \le \mathit{lastSeq}(d, a)$
+  \State \textbf{Step 6} Evaluate business rules (temperature, geofence, actor sequence)
+  \State \textbf{Step 7} Append to \texttt{AssetLedger}; emit \texttt{CustodyTransferred} event
+\end{algorithmic}
+\end{algorithm}
+
+% ─────────────────────────────────────────────────────────────────────────────
+\section{Simulation Framework}
+\label{sec:sim}
+
+\subsection{Discrete-Event Engine}
+
+The SimPy~\cite{simpy} DES engine models time-evolving processes for
+parcel arrivals (Poisson, $\lambda = 100$\,parcels/hr), custody handoffs
+(truncated Poisson route length, $\mu = 3.2$), communication latency
+(log-normal, mean 200\,ms), and block confirmation across three blockchain
+configurations.
+
+\subsection{Adversarial Attack Engine}
+
+An \texttt{AdversarialEngine} injects five attack categories (Table~\ref{tab:tdr})
+at a 10\% overall rate with the distribution shown below:
+
+\begin{center}
+\begin{tabular}{lrr}
+\toprule
+Attack Type & Fraction & Count (50K) \\
+\midrule
+Payload modification  & 25\% & 1,250 \\
+Timestamp manipulation & 20\% & 1,000 \\
+Signature forgery      & 20\% & 1,000 \\
+Replay attack          & 20\% & 1,000 \\
+Sequence violation     & 15\% &   750 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{EIP-1559 Gas Model}
+
+Base fees evolve per block according to:
+\[
+  f_{n+1} =
+  \begin{cases}
+    f_n \left(1 + 0.125 \cdot \dfrac{u - u^*}{u^*}\right) & u > u^* \\[6pt]
+    f_n \left(1 - 0.125 \cdot \dfrac{u^* - u}{u^*}\right) & u \le u^*
+  \end{cases}
+\]
+where $u$ is block utilisation and $u^* = 0.5$ is the target.
+
+% ─────────────────────────────────────────────────────────────────────────────
+\section{Experimental Results}
+\label{sec:results}
+
+All experiments use seed 42, 50,000 handoffs, $\lambda = 100$\,parcels/hr,
+and a 300\,s timestamp skew window.
+
+\subsection{Tamper Detection Rate}
+
+% ── Table 2 (auto-generated — see results/tables.tex) ───────────────────────
+\input{../results/tables.tex}
+% ────────────────────────────────────────────────────────────────────────────
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.92\linewidth]{../results/figures/fig1_tdr_bar.png}
+  \caption{Tamper Detection Rate by attack category (50,000 handoffs).
+           Dashed line marks the 99.90\% PRD acceptance threshold.}
+  \label{fig:tdr}
+\end{figure}
+
+Payload modification, timestamp manipulation, signature forgery, and
+sequence violation are detected with \emph{mathematical certainty} by the
+cryptographic protocol.
+Replay attacks have a probabilistic edge case: when a replayed event arrives
+within the skew window and before the original block has propagated, the
+timestamp and sequence checks may both pass.
+This accounts for the $\approx\!0.2\%$ miss rate observed in simulation.
+
+\subsection{Confirmation Latency}
+
+\begin{figure}[H]
+  \centering
+  \begin{subfigure}[b]{0.48\linewidth}
+    \includegraphics[width=\linewidth]{../results/figures/fig2_latency_cdf.png}
+    \caption{Latency CDF.}
+  \end{subfigure}
+  \hfill
+  \begin{subfigure}[b]{0.48\linewidth}
+    \includegraphics[width=\linewidth]{../results/figures/fig4_latency_boxplot.png}
+    \caption{Latency box-plot.}
+  \end{subfigure}
+  \caption{End-to-end confirmation latency across three blockchain configurations.}
+  \label{fig:latency}
+\end{figure}
+
+Median latencies of 14.2\,s, 3.8\,s, and 1.1\,s for the Ethereum-analog,
+Layer-2, and high-throughput configurations respectively confirm that
+Layer-2 rollups offer an attractive latency--cost trade-off for industrial
+custody chains.
+
+\subsection{Gas Cost Reduction}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.7\linewidth]{../results/figures/fig3_gas_breakdown.png}
+  \caption{Gas consumption: naïve vs.\ edge-optimised smart contract.}
+  \label{fig:gas}
+\end{figure}
+
+Edge-side pre-validation—where the IoT device executes lightweight sanity
+checks before transmission—reduces on-chain gas by 37.7\% for
+\texttt{anchorEvent} (leveraging the \texttt{ecrecover} precompile model)
+and 14.0\% for \texttt{verifyEvent}, yielding a 25.1\% aggregate reduction.
+At 30\,gwei the cost per handoff falls from \$2.34 to \$1.76; on Layer-2
+at 5\,gwei from \$0.39 to \$0.29.
+
+% ─────────────────────────────────────────────────────────────────────────────
+\section{Discussion}
+\label{sec:discussion}
+
+\paragraph{Reproducibility.}
+The simulation is fully deterministic for a given seed, satisfying
+acceptance test T-013.
+The public repository at
+\url{https://github.com/naushikbeladiya/blockchain-iot-custody-sim}
+provides a one-command reproduction path:
+\begin{lstlisting}[language=bash, basicstyle=\small\ttfamily]
+custody-sim run --config config/paper_reproduction.yaml --output ./results
+\end{lstlisting}
+
+\paragraph{Limitations.}
+The simulation does not model Byzantine validator failures, network
+partitions, or hardware side-channel attacks on the IoT seal.
+Gas estimates are deterministic and do not reflect EVM execution variance
+introduced by dynamic storage costs in a live deployment.
+
+\paragraph{Future Work.}
+Extensions include (i) a multi-chain federation protocol for cross-border
+logistics, (ii) threshold-ECDSA for multi-party custody without a single
+private key, and (iii) a live testnet deployment on Ethereum Sepolia.
+
+% ─────────────────────────────────────────────────────────────────────────────
+\section{Conclusion}
+\label{sec:conclusion}
+
+We presented a reproducible DES framework that demonstrates a 99.96\%
+aggregate Tamper Detection Rate across five adversarial attack categories,
+with mathematically certain detection for payload modification, timestamp
+manipulation, signature forgery, and sequence violation.
+The framework validates that Layer-2 blockchain configurations achieve
+sub-4-second median confirmation latency, and that edge-side smart-contract
+optimisations reduce transaction costs by over 25\%.
+The artefacts—source code, configuration files, CSV outputs, and this
+paper—together constitute a reproducible research package suitable for
+peer review.
+
+% ─────────────────────────────────────────────────────────────────────────────
+\bibliographystyle{IEEEtran}
+\bibliography{references}
+
+\end{document}

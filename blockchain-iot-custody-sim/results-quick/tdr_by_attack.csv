@@ -1,0 +1,7 @@
+Attack Category,Injected,Detected,TDR (%)
+Payload modification,30,30,100.0
+Timestamp manipulation,15,15,100.0
+Signature forgery,18,18,100.0
+Replay attack,24,24,100.0
+Sequence violation,15,15,100.0
+Aggregate,102,102,100.0

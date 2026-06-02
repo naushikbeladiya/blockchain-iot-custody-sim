@@ -1,0 +1,2 @@
+[console_scripts]
+custody-sim = custody_sim.cli:cli

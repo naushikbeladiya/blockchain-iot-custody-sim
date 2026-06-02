@@ -1,0 +1,54 @@
+% ── Table 2: Tamper Detection Rate ───────────────────────
+\begin{table}[h]
+\centering
+\caption{Tamper Detection Rate by Attack Category}
+\label{tab:tdr}
+\begin{tabular}{lrrr}
+\toprule
+\textbf{Attack Category} & \textbf{Injected} & \textbf{Detected} & \textbf{TDR (\%)} \\
+\midrule
+Payload modification & 2,064 & 2,058 & 99.71 \\
+Timestamp manipulation & 1,539 & 1,539 & 100.00 \\
+Signature forgery & 1,578 & 1,578 & 100.00 \\
+Replay attack & 1,677 & 1,674 & 99.82 \\
+Sequence violation & 1,197 & 1,143 & 95.49 \\
+\midrule
+\textbf{Aggregate} & \textbf{8,055} & \textbf{7,992} & \textbf{99.22} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% ── Table 3: Latency Distributions ──────────────────────
+\begin{table}[h]
+\centering
+\caption{End-to-End Confirmation Latency by Blockchain Configuration}
+\label{tab:latency}
+\begin{tabular}{lrrr}
+\toprule
+\textbf{Configuration} & \textbf{Median (s)} & \textbf{P95 (s)} & \textbf{P99 (s)} \\
+\midrule
+Ethereum analog (12s blocks) & 9.2 & 14.8 & 15.9 \\
+Layer-2 rollup (2s blocks) & 4.1 & 6.0 & 6.9 \\
+High-throughput (0.4s blocks) & 3.3 & 4.9 & 5.9 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% ── Table 4: Gas Cost Comparison ───────────────────────
+\begin{table}[h]
+\centering
+\caption{Gas Consumption: Naïve vs Edge-Optimized Smart Contract}
+\label{tab:gas}
+\begin{tabular}{lrrr}
+\toprule
+\textbf{Function} & \textbf{Na\"{i}ve Gas} & \textbf{Optimized Gas} & \textbf{Reduction (\%)} \\
+\midrule
+anchorEvent & 148,200 & 92,400 & 37.7 \\
+verifyEvent & 67,800 & 58,300 & 14.0 \\
+updateAssetLedger & 44,600 & 44,600 & 0.0 \\
+Total per handoff & 260,600 & 195,300 & 25.1 \\
+USD @ 30 gwei & $23.45 & $17.58 & 25.1 \\
+USD @ 5 gwei (L2) & $3.91 & $2.93 & 25.1 \\
+\bottomrule
+\end{tabular}
+\end{table}
