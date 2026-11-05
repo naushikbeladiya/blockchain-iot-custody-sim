@@ -120,6 +120,34 @@ class NetworkTopology:
         sigma = np.sqrt(np.log(var / mean ** 2 + 1.0))
         return float(rng.lognormal(mu, sigma))
 
+    # ------------------------------------------------------------------
+    # R2: corrected block-inclusion model (Reviewer 1, semantic comment 1)
+    # ------------------------------------------------------------------
+    def get_inclusion_delay(self, chain: str, rng=None) -> float:
+        """
+        Mempool arrival -> block inclusion, in seconds.
+
+        Replaces the R1 formulation `get_mempool_queue_delay() +
+        uniform(0, block_time)`, which applied one fixed mempool distribution
+        to every chain and assumed inclusion in the next block with
+        probability 1. On a public chain, transactions compete for finite
+        block space against exogenous demand:
+
+            delay = U(0, b) + (G - 1) * b,   G ~ Geometric(p_incl)
+
+        p_incl = 1.0 recovers the closed-system (permissioned) case exactly.
+        See custody_sim.inclusion_model for profiles and rationale.
+        """
+        from .inclusion_model import build_profiles
+        if rng is None:
+            rng = self.rng
+        regime = self.config.get("contention_regime", "normal")
+        prof = build_profiles(regime)[chain]
+        residual = rng.uniform(0.0, prof.block_time)
+        if prof.p_incl >= 1.0:
+            return float(residual)
+        return float(residual + (rng.geometric(prof.p_incl) - 1) * prof.block_time)
+
     def get_mempool_queue_delay(self, rng=None) -> float:
         """
         Mempool queuing / propagation delay before block inclusion (seconds).
